@@ -42,10 +42,6 @@ void zzcr_attr(Attrib *attr, int type, char *text) {
     attr->kind = "id";
     attr->text = text;
   }
-  else if(type == NUM) {
-    attr->kind = "intconst";
-    attr->text = text;
-  }
   else {
     attr->kind = text;
     attr->text = "";
@@ -139,7 +135,7 @@ int main() {
 #token WEST "WEST"
 #token SOUTH "SOUTH"
 #token NORTH "NORTH"
-#token EST "EST"
+#token EST "EAST"
 #token MOVE "MOVE"
 
 //ACTIONS
@@ -150,26 +146,25 @@ int main() {
 #token PLACE "PLACE"
 #token AT "AT"
 
-lego: (instruction <<#0=createASTlist(_sibling);>> | op2)*;
+lego: grid ops <<#0=createASTlist(_sibling);>>;
 
-instruction: GRID^ NUM NUM
-        | defs
-        ;
+grid: GRID^ NUM NUM;
 
-defs: ID ASSIG^ op1;
+ops: (decl | mov)* <<#0=createASTlist(_sibling);>>;
+    //
+    //
+    decl: ID ASSIG^ (where | pp);
+      //
+      //
+      where: PLACE^ coord AT! coord;
+      pp: type (PUSH^| POP^) pp2;
+      type: ID | coord;
+      pp2: id (POP^ id|PUSH^ id)*;
+      id: ID;
+    //
+    mov: MOVE^ ID dir NUM;
 
-op1: PLACE^ coord AT! coord
-    | (action)*
-    ;
-
-coord: (PO! NUM COM! NUM PC!) <<#0=createASTlist(_sibling);>>;
-
-action:PUSH^ ID
-      | POP^ ID
-      | coord
-      ;
-
-op2: MOVE^ ID dir NUM;
+coord: PO! NUM COM! NUM PC! <<#0=createASTlist(_sibling);>>;
 
 dir: NORTH
     | SOUTH

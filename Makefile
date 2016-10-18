@@ -1,3 +1,5 @@
+INCLUDE = -I /usr/include/pccts
+FLAGS= -Wno-write-strings
 
 all: antlr dlg lego
 
@@ -8,7 +10,7 @@ dlg: parser.dlg
 		dlg -ci parser.dlg scan.c
 
 lego: lego.c scan.c err.c
-		g++ -o lego lego.c scan.c err.c
+		g++ $(FLAGS) -o lego lego.c scan.c err.c $(INCLUDE)
 
 
 
