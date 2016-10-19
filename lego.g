@@ -83,8 +83,9 @@ void ASTPrintIndent(AST *a,string s)
 {
   if (a==NULL) return;
 
-  cout<<a->kind;
-  if (a->text!="") cout<<"("<<a->text<<")";
+
+  if (a->text!="") cout<<a->text;
+  else cout<<a->kind;
   cout<<endl;
 
   AST *i = a->down;
@@ -123,13 +124,18 @@ int main() {
 #lexclass START
 #token SPACE "[\ \n]" << zzskip();>>
 #token GRID "GRID"
+#token DEF "DEF"
 #token NUM "[0-9]+"
-#token ID "[a-zA-Z]+[0-9]"
+#token ID "[A-Z]+[0-9]+"
 #token ASSIG "\="
 #token PO "\("
 #token PC "\)"
 #token COM "\,"
-
+#token CLAU1 "\["
+#token CLAU2 "\]"
+#token LT "\<"
+#token BT "\>"
+#token ENDEF "ENDEF"
 
 //DIRECTIONS
 #token WEST "WEST"
@@ -145,29 +151,50 @@ int main() {
 //DEFINITIONS
 #token PLACE "PLACE"
 #token AT "AT"
+#token HEIGHT "HEIGHT"
 
-lego: grid ops <<#0=createASTlist(_sibling);>>;
+//LOOP
+#token WHILE "WHILE"
+#token FITS "FITS"
+#token AND "AND"
+
+
+lego: grid ops defs <<#0=createASTlist(_sibling);>>;
 
 grid: GRID^ NUM NUM;
+ops: (instruction)* <<#0=createASTlist(_sibling);>>;
+defs: (def)* <<#0=createASTlist(_sibling);>>;
 
-ops: (decl | mov)* <<#0=createASTlist(_sibling);>>;
-    //
-    //
-    decl: ID ASSIG^ (where | pp);
-      //
-      //
-      where: PLACE^ coord AT! coord;
-      pp: type (PUSH^| POP^) pp2;
-      type: ID | coord;
-      pp2: id (POP^ id|PUSH^ id)*;
-      id: ID;
-    //
+
+//OPERACIONS
+instruction: op | mov | loop | req;
+//---Instruccions
+    req: fit
+        | height ((LT^|BT^) NUM)*;
+
     mov: MOVE^ ID dir NUM;
+    height: HEIGHT^ PO! ID PC!;
+    loop: WHILE^ PO! cond PC! make;
+    fit: FITS^ PO! ID COM! coord COM! NUM PC!;
+    op: decl | ID;
 
-coord: PO! NUM COM! NUM PC! <<#0=createASTlist(_sibling);>>;
+//---Asignaciones
+    decl: ID ASSIG^ (where | pp);
+    where: PLACE^ PO! coord PC! AT! PO! coord PC!;
+    pp: type (PUSH^| POP^) pp2;
+    pp2: ID (POP^ ID|PUSH^ ID)*;
 
-dir: NORTH
-    | SOUTH
-    | EST
-    | WEST
-    ;
+//DECLARACIO DE FUNCTIONS
+def: DEF^ ID ops ENDEF!;
+
+//AUXILARS
+
+//----------LOOP
+            cond: req (AND^ req)*;
+            make: CLAU1! decl CLAU2! <<#0=createASTlist(_sibling);>>;
+
+//----------POSICIONS
+            coord: NUM COM! NUM <<#0=createASTlist(_sibling);>>;
+            dir: NORTH | SOUTH | EST | WEST;
+
+type: ID | PO! coord PC!;
