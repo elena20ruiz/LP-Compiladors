@@ -5,11 +5,32 @@
 #include <map>
 using namespace std;
 
+//****************************************************************************//
+//*****************************ESTRUCTURES************************************//
+//****************************************************************************//
+
+typedef struct {
+  int x,y; //punt cantonada superior esquerra
+  int h,w; //DIMENSIONS
+} tblock;
+
+typedef struct {
+  int n,m;
+  vector< vector<int> > height;
+  map<string, tblock> blocks;
+} Graella;
+
+
 // struct to store information about tokens
 typedef struct {
   string kind;
   string text;
 } Attrib;
+
+//****************************************************************************//
+//****************************FUNCIONS EVALUATIVES****************************//
+//****************************************************************************//
+void executeListInstrucctions(AST *a);
 
 // function to fill token information (predeclaration)
 void zzcr_attr(Attrib *attr, int type, char *text);
@@ -29,7 +50,7 @@ AST* createASTnode(Attrib* attr,int ttype, char *textt);
 
 //global structures
 AST *root;
-
+Graella g;
 
 //****************************************************************************//
 //*******************************TOKEN INFORMATION****************************//
@@ -114,6 +135,13 @@ void ASTPrint(AST *a)
 
 
 
+
+
+void executeListInstrucctions(AST *a) {
+
+}
+
+
 int main() {
   root = NULL;
   ANTLR(lego(&root), stdin);
@@ -161,40 +189,40 @@ int main() {
 
 lego: grid ops defs <<#0=createASTlist(_sibling);>>;
 
+
+//ESTRUCTURA PRINCIPAL
 grid: GRID^ NUM NUM;
 ops: (instruction)* <<#0=createASTlist(_sibling);>>;
 defs: (def)* <<#0=createASTlist(_sibling);>>;
 
 
-//OPERACIONS
-instruction: op | mov | loop | req;
-//---Instruccions
-    req: fit
-        | height ((LT^|BT^) NUM)*;
+//1.OPERACIONS
+instruction: action | mov | loop | height;
 
-    mov: MOVE^ ID dir NUM;
-    height: HEIGHT^ PO! ID PC!;
-    loop: WHILE^ PO! cond PC! make;
-    fit: FITS^ PO! ID COM! coord COM! NUM PC!;
-    op: decl | ID;
-
-//---Asignaciones
-    decl: ID ASSIG^ (where | pp);
-    where: PLACE^ PO! coord PC! AT! PO! coord PC!;
-    pp: type (PUSH^| POP^) pp2;
-    pp2: ID (POP^ ID|PUSH^ ID)*;
-
-//DECLARACIO DE FUNCTIONS
+//2.DECLARACIO DE FUNC.
 def: DEF^ ID ops ENDEF!;
 
-//AUXILARS
+//---FUNCIONS
+    action: ID ASSIG^ (where | pp);
+    mov: MOVE^ ID dir NUM;
+    loop: WHILE^ PO! cond PC! make;
+    height: HEIGHT^ PO! ID PC!;
+    fit: FITS^ PO! ID COM! coord COM! NUM PC!;
+
+
+//---------SOBRE ACCIONS
+            where: PLACE^ PO! coord PC! AT! PO! coord PC!;
+            pp: type (PUSH^| POP^) pp2;
+            pp2: ID (POP^ ID|PUSH^ ID)*;
 
 //----------LOOP
             cond: req (AND^ req)*;
-            make: CLAU1! decl CLAU2! <<#0=createASTlist(_sibling);>>;
+            req: fit | height (LT^|BT^) NUM;
+            make: CLAU1! ops CLAU2!;
 
 //----------POSICIONS
             coord: NUM COM! NUM <<#0=createASTlist(_sibling);>>;
             dir: NORTH | SOUTH | EST | WEST;
 
-type: ID | PO! coord PC!;
+//----------DADES
+            type: ID | PO! coord PC!;
