@@ -209,42 +209,8 @@ void definirNouBlock(string id, tblock &tb) {
     }
 }
 
-bool aplicarPOP(tblock &tb_amunt, tblock &tb_abaix) {
 
-  if(tb_amunt.x == g.blocks[tb_abaix.amunt.back()].x){
-    borrarPosicio(tb_amunt.x,tb_amunt.h,tb_amunt.y,tb_amunt.w);
-    tb_amunt.x = 0;
-    tb_amunt.y = 0;
-   return true;
-  }
-  else {
-      cout << "NO ES POT REALITZAR EL POP" << endl;
-      return false;
-  }
-}
 
-bool aplicarPUSH(tblock &tb_amunt, string id_amunt, tblock &tb_abaix) {
-
-  int x,y,dx,dy;
-  x = tb_abaix.x;
-  y = tb_abaix.y;
-  dx = tb_amunt.h;
-  dy = tb_amunt.w;
-
-  if (dx > tb_abaix.h || dy > tb_abaix.w) return false;
-  if(modificarMapa(x,dx,y,dy)) { //Si es pot ya s'aplica
-    if (tb_amunt.x != 0) borrarPosicio(tb_amunt.x,dx,tb_amunt.y,dy);
-    tb_amunt.x = x;
-    tb_amunt.y = y;
-    if(id_amunt != "") g.blocks[id_amunt] = tb_amunt;
-
-    return true;
-  }
-  else {
-      cout << "NO ES POT REALITZAR EL PUSH/POP" << endl;
-      return false;
-  }
-}
 
 
 //----------------------------------------------------------------------------//
@@ -265,7 +231,7 @@ pair<int,int> parseMov(string dir, int dist){
 void evaluarHeight(AST *a) {
     int x = g.blocks[a->text].x;
     int y = g.blocks[a->text].y;
-    cout << "L'altura de "<< a->text << " es: " << g.height[x-1][y-1] << endl;
+    cout << "L'altura de "<< a->text << " es: " << g.height[x][y] << endl;
 }
 
 void evaluarLoop(AST *a){
@@ -277,47 +243,44 @@ void evaluarLoop(AST *a){
 //-----------------------EVALUACIO TIPUS OPERACIONS---------------------------//
 //----------------------------------------------------------------------------//
 
-int num = 0;
 
-
-tblock realitzarAccioPUSHPOP(tblock &tb_ant, string &id_retorn, string &id_act, int type){
-
-  tblock tbuit;
-  tbuit.x = 0; tbuit.y = 0; tbuit.h = 0; tbuit.w = 0;
-    if(type == 0) {
-      if (aplicarPUSH(tb_ant,id_retorn,g.blocks[id_act])) {
-        g.blocks[id_act].amunt.push_back(id_retorn);
-        id_retorn = id_act;
-        return g.blocks[id_act];
-      }
-      else cout << "No sha pogut realizar el PUSH" << endl;
-    }
-    else {
-      if(aplicarPOP(tb_ant,g.blocks[id_act])) {
-        //Afectacios, block id_ret(tb_ant) desapareix del mapa
-        g.blocks[id_act].amunt.pop_back();
-        g.blocks[id_retorn] = tb_ant;
-        id_retorn = id_act;
-        return g.blocks[id_act];
-      }
-      else cout << "No sha pogut realizar el POP" << endl;
-    }
-    return tbuit;
+void swap(tblock &tb, string id1, string id2) {
+  g.blocks[id1] = tb;
+  if(id2 != NULL) {
+    tblock buit;
+    g.blocks[id2] = buit;
+  }
 }
 
+bool aplicarPUSH(tblock &tb_amunt, tblock &tb_abaix) {
+
+  int x,y,dx,dy;
+  x = tb_abaix.x;
+  y = tb_abaix.y;
+  dx = tb_amunt.h;
+  dy = tb_amunt.w;
+  if(modificarMapa(x,dx,y,dy)) { //Si es pot ya s'aplica
+    if (tb_amunt.x != 0) borrarPosicio(tb_amunt.x,dx,tb_amunt.y,dy);
+    tb_amunt.x = x;
+    tb_amunt.y = y;
+    return true;
+  }
+  else {
+      cout << "NO ES POT REALITZAR EL PUSH/POP" << endl;
+      return false;
+  }
+}
 
 tblock evaluarPUSHPOP(AST *a, tblock &tb_ant, string &id_retorn, int type) {
-  tblock tbuit;
-  tbuit.x = 0; tbuit.y = 0; tbuit.h = 0; tbuit.w = 0;
+  if(a== NULL) return tblock;
   string node = a->kind;
   if(node == "list") {
     int aux1 = atoi((child(a,0)->text).c_str());
     int aux2 = atoi((child(a,1)->text).c_str());
     tb_ant.h = aux1;
     tb_ant.w = aux2;
-    num +=1;
-    id_retorn = "aux" + num;
     return evaluarPUSHPOP(a->right,tb_ant,id_retorn,type);
+
   }
   else if (node == "id" && tb_ant.h == 0) {
     //ID EXISTEIX
@@ -328,27 +291,19 @@ tblock evaluarPUSHPOP(AST *a, tblock &tb_ant, string &id_retorn, int type) {
     }
     else {
       cout << "NO EXISTEIX BLOCK AMB AQUEST ID" << endl;
-      return tbuit;
+      return tblock;
     }
   }
   else if (node == "id") {
     if(g.blocks.find(a->text) != g.blocks.end()) { //Existeix block
-      string id_act = a->text;
-      return realitzarAccioPUSHPOP(tb_ant,id_retorn,id_act,type);
+      if (aplicarPUSH(tb_ant,g.blocks[a->text])) {
+        tblock tbuit;
+        g.blocks[a->text].amunt.add(id_retorn);
+        return g.blocks[a->text];
+      }
     }
   }
-  else {
-    tblock t;
-    t.x = 0; t.y = 0; t.w=0; t.h = 0;
-    string ant = "";
-    int ttype = 0;
-    if(node == "POP") ttype = 1;
-    tblock block = evaluarPUSHPOP(child(a,0),t,ant,ttype);
-    cout << tb_ant.x << id_retorn << ant << type << endl;
-    return realitzarAccioPUSHPOP(tb_ant,id_retorn,ant,type);
-  }
 }
-
 
 void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
   string tt = a->kind;
@@ -376,9 +331,9 @@ void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
     if (a->kind == "POP") type = 1;
     tblock tb;
     tb.x = 0; tb.y = 0; tb.h = 0; tb.w= 0;
-    string id_retorn;
+
     tblock tb_nou = evaluarPUSHPOP(child(a,0), tb, id_retorn, type);
-    g.blocks[id_afectat] = tb_nou;
+    swap(tb_nou,id_retorn);
   }
 }
 

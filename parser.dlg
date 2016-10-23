@@ -16,13 +16,37 @@
 #include <string>
 #include <iostream>
 #include <map>
+#include <vector>
 using namespace std;
+
+//****************************************************************************//
+//*****************************ESTRUCTURES************************************//
+//****************************************************************************//
+
+typedef struct {
+  int x,y; //punt cantonada superior esquerra
+  int h,w; //DIMENSIONS
+  vector<string> amunt;
+} tblock;
+
+typedef struct {
+  int n,m;
+  vector< vector<int> > height;
+  map<string, tblock> blocks;
+} Graella;
+
 
 // struct to store information about tokens
 typedef struct {
   string kind;
   string text;
 } Attrib;
+
+//****************************************************************************//
+//****************************FUNCIONS EVALUATIVES****************************//
+//****************************************************************************//
+//void definirTaulell(AST* a);
+//void executeListInstrucctions(AST *a);
 
 // function to fill token information (predeclaration)
 void zzcr_attr(Attrib *attr, int type, char *text);
@@ -72,12 +96,17 @@ GRID
 		NLA = GRID;
 	>>
 
+DEF
+	<<
+		NLA = DEF;
+	>>
+
 [0-9]+
 	<<
 		NLA = NUM;
 	>>
 
-[a-zA-Z]+[0-9]
+[A-Z]+[0-9]+
 	<<
 		NLA = ID;
 	>>
@@ -100,6 +129,31 @@ GRID
 \,
 	<<
 		NLA = COM;
+	>>
+
+\[
+	<<
+		NLA = CLAU1;
+	>>
+
+\]
+	<<
+		NLA = CLAU2;
+	>>
+
+\<
+	<<
+		NLA = LT;
+	>>
+
+\>
+	<<
+		NLA = BT;
+	>>
+
+ENDEF
+	<<
+		NLA = ENDEF;
 	>>
 
 WEST
@@ -145,6 +199,26 @@ PLACE
 AT
 	<<
 		NLA = AT;
+	>>
+
+HEIGHT
+	<<
+		NLA = HEIGHT;
+	>>
+
+WHILE
+	<<
+		NLA = WHILE;
+	>>
+
+FITS
+	<<
+		NLA = FITS;
+	>>
+
+AND
+	<<
+		NLA = AND;
 	>>
 
 %%
