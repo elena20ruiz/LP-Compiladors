@@ -25,7 +25,6 @@ typedef struct {
   map<string, tblock> blocks;
 } Graella;
 
-
 // struct to store information about tokens
 typedef struct {
   string kind;
@@ -54,9 +53,17 @@ AST* createASTnode(Attrib* attr,int ttype, char *textt);
 #include <cstdlib>
 #include <cmath>
 
+
+typedef struct {
+  string nom;
+  AST *f;
+}FUNCIO;
+
 //global structures
 AST *root;
 Graella g;
+vector<FUNCIO> FUNCIONS;
+int num = 0; //ASSIGNAR NOM A NOUS BLOCKS
 
 //****************************************************************************//
 //*******************************TOKEN INFORMATION****************************//
@@ -113,8 +120,6 @@ return c;
 void ASTPrintIndent(AST *a,string s)
 {
   if (a==NULL) return;
-
-
   if (a->text!="") cout<<a->text;
   else cout<<a->kind;
   cout<<endl;
@@ -145,23 +150,19 @@ void ASTPrint(AST *a)
 
 
 void printMap() {
-
   for(int i = 0; i < g.n; ++i) {
-
     for(int j = 0; j < g.m; ++j) {
       if(g.height[i][j] == 0) cout << "_";
       else cout << g.height[i][j];
     }
     cout << endl;
   }
-
 }
 
 //****************************************************************************//
 //-------------------------OPERACIONS DEL JOC---------------------------------//
 //----------------------------------------------------------------------------//
 void borrarPosicio(int x, int dx, int y ,int dy) {
-
     for(int i = (x-1); i < (x+dx-1); ++i) {
       for(int j = (y-1); j < (y+dy-1); ++j) {
           g.height[i][j] -= 1;
@@ -190,6 +191,19 @@ bool modificarMapa(int x, int dx, int y, int dy)
 }
 
 
+int x_inicial, y_inicial;
+
+bool capBlock(int inix, int iniy, int fix, int fiy, int altura) {
+  for(int i = inix; i < inix+fix; ++i) {
+    for(int j = iniy; j < iniy+fiy; ++j) {
+      if(g.height[i][j] != altura) return false;
+    }
+  }
+  x_inicial = inix;
+  y_inicial = iniy;
+  return true;
+}
+
 bool esPossibleModificarMapa(string id, tblock &tb) {
     if(estaDinsGraella(tb.x,tb.y)) {
       int espaix = tb.x + tb.h;
@@ -200,6 +214,28 @@ bool esPossibleModificarMapa(string id, tblock &tb) {
     }
     return false;
 }
+
+bool HiHaEspai(string id, int dx, int dy, int altura) {
+    int x,y;
+    int xF, yF;
+    if (altura == -1)  {
+      int x = g.blocks[id].x;
+      int y = g.blocks[id].y;
+      altura = g.height[x-1][y-1];
+    }
+    x = g.blocks[id].x;
+    y = g.blocks[id].y;
+    xF = (x + g.blocks[id].h - dx); //Xinicial + Xfinal - dimBlock
+    yF = (x + g.blocks[id].h - dy);
+
+    for(int i = (x-1); i < xF-1; ++i) {
+      for(int j = (y-1); j < yF-1; ++j) {
+        if(capBlock(i,j,dx,dy,altura)) return true;
+      }
+    }
+    return false;
+}
+
 
 void definirNouBlock(string id, tblock &tb) {
     if (esPossibleModificarMapa(id, tb)) {
@@ -212,8 +248,16 @@ void definirNouBlock(string id, tblock &tb) {
     }
 }
 
-int getIndexAmunt(string id1, string id2) {
+int getIndexFuncio(string funcio) {
+  int i = 0;
+  while (i < FUNCIONS.size()) {
+    if(FUNCIONS[i].nom == funcio) return i;
+    ++i;
+  }
+  return -1;
+}
 
+int getIndexAmunt(string id1, string id2) {
   int i = 0;
   while (i < g.blocks[id1].amunt.size()) {
     if (g.blocks[id1].amunt[i] == id2) return i;
@@ -222,15 +266,31 @@ int getIndexAmunt(string id1, string id2) {
   return -1; //No esta
 }
 
+void llegirLlista(AST *a, int &aux1, int &aux2) {
+  aux1 = atoi((child(a,0)->text).c_str());
+  aux2 = atoi((child(a,1)->text).c_str());
+}
+
+string NumberToString ( int Number )
+{
+  std::string s;
+  std::stringstream out;
+  out << Number;
+  s = out.str();
+  return s;
+}
+
+
+//****************************************************************************//
+//***************************APLICACIO DE FUNCIONS****************************//
+//****************************************************************************//
+
 bool aplicarPOP(string id_amunt, string id_abaix) {
-
   int index = getIndexAmunt(id_abaix,id_amunt); //Mira si id_amunt esta en id_abaix
-
   if(index != -1){ //Si esta amunt
 
     borrarPosicio(g.blocks[id_amunt].x,g.blocks[id_amunt].h,
                    g.blocks[id_amunt].y,g.blocks[id_amunt].w); //Borrar del mapa
-
     //Borrar assignacions
     int i = getIndexAmunt(id_abaix, id_amunt);
     g.blocks[id_abaix].amunt.erase(g.blocks[id_abaix].amunt.begin() + i);
@@ -243,9 +303,7 @@ bool aplicarPOP(string id_amunt, string id_abaix) {
 }
 
 bool aplicarPUSH(string id_amunt, string id_abaix) {
-  int x,y,dx,dy;
-  x = g.blocks[id_abaix].x;
-  y = g.blocks[id_abaix].y;
+  int dx,dy;
   dx = g.blocks[id_amunt].h;
   dy = g.blocks[id_amunt].w;
 
@@ -253,17 +311,19 @@ bool aplicarPUSH(string id_amunt, string id_abaix) {
   if (dx > g.blocks[id_abaix].h || dy > g.blocks[id_abaix].w) return false;
 
   //Si al BLOC D'ABAIX POT COLOCARSE
-  if(modificarMapa(x,dx,y,dy)) {
-    //S'aplicaPUSH
-    if (g.blocks[id_amunt].x != 0) {
-      borrarPosicio(g.blocks[id_amunt].x,dx,g.blocks[id_amunt].y,dy);
+  if(HiHaEspai(id_abaix,dx,dy,-1)) {
+    if(modificarMapa(x_inicial,dx,y_inicial,dy)) { //VARIABLES GLOBALS _inicial
+      //S'aplicaPUSH
+      if (g.blocks[id_amunt].x != 0) {
+        borrarPosicio(g.blocks[id_amunt].x,dx,g.blocks[id_amunt].y,dy);
+      }
+      //Noves coordenades
+      g.blocks[id_amunt].x = x_inicial;
+      g.blocks[id_amunt].y = y_inicial;
+      //Nova assignacio
+      g.blocks[id_abaix].amunt.push_back(id_amunt);
+      return true;
     }
-    //Noves coordenades
-    g.blocks[id_amunt].x = x;
-    g.blocks[id_amunt].y = y;
-    //Nova assignacio
-    g.blocks[id_abaix].amunt.push_back(id_amunt);
-    return true;
   }
   else {
       cout << "NO ES POT REALITZAR EL PUSH/POP" << endl;
@@ -287,14 +347,43 @@ pair<int,int> parseMov(string dir, int dist){
   return p;
 }
 
-void evaluarHeight(AST *a) {
-    int x = g.blocks[a->text].x;
-    int y = g.blocks[a->text].y;
-    cout << "L'altura de "<< a->text << " es: " << g.height[x-1][y-1] << endl;
+int evaluarHeight(AST *a) {
+  if(g.blocks.find(a->text) != g.blocks.end()) {
+      int x = g.blocks[a->text].x;
+      int y = g.blocks[a->text].y;
+      cout << "L'altura de "<< a->text << " es: " << g.height[x-1][y-1] << endl;
+      return g.height[x-1][y-1];
+  }
+  return -1;
 }
 
-void evaluarLoop(AST *a){
+bool evaluarFIT(AST *a) {
+  string id = child(a,0)->text;
+  int dx = 0;
+  int dy = 0;
+  llegirLlista(child(a,1),dx,dy);
+  int altura = atoi((child(a,2)->text).c_str());
 
+  if(HiHaEspai(id,dx,dy,altura)) return true;
+  else return false;
+}
+
+bool esCompleixIgualtat(AST* a) {
+  string op = a->kind;
+  a = child(a,0);
+  int cond1, cond2;
+
+  cond1 = evaluarHeight(child(a,0));
+  if(cond1 == -1) cout << "NO EXISTEIX BLOCK AMB AQUEST ID" << endl;
+  cond2 = atoi(((a->right)->text).c_str());
+
+  if( op == ">" && (cond1 > cond2)) return true;
+  else if (op == "<" && (cond1 < cond2)) return true;
+  return false;
+}
+
+bool evaluarCondicio(AST *a) { //AND
+  return esCompleixIgualtat(child(a,0)) && esCompleixIgualtat(child(a,0));
 }
 
 
@@ -302,26 +391,8 @@ void evaluarLoop(AST *a){
 //-----------------------EVALUACIO TIPUS OPERACIONS---------------------------//
 //----------------------------------------------------------------------------//
 
-int num = 0;
-
-
-void llegirLlista(AST *a, int &aux1, int &aux2) {
-  aux1 = atoi((child(a,0)->text).c_str());
-  aux2 = atoi((child(a,1)->text).c_str());
-}
-
-string NumberToString ( int Number )
-{
-  std::string s;
-  std::stringstream out;
-  out << Number;
-  s = out.str();
-  return s;
-}
-
 
 string evaluarPUSHPOP(AST *a, int type) {
-
     string idB1;
     //FILL 1
     if(a->kind == "id") idB1 = a->text;
@@ -344,11 +415,9 @@ string evaluarPUSHPOP(AST *a, int type) {
 
       int type2 = 0;
       if ((a->right)->kind == "POP") type2 = 1;
-      cout << "GI2" << endl;
-      idB2 = evaluarPUSHPOP(child(a,0),type2);
-      cout << "GI2" << endl;
+      idB2 = evaluarPUSHPOP(child(a->right,0),type2);
+
     }
-    cout << "VOLEM FER PP DE "<< idB1 << " SOBRE "<< idB2 << endl;
     //REALITZAR PUSH O POP
     if(idB2 != "") {
       if(type == 0){
@@ -399,11 +468,8 @@ void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
         g.blocks[id_nouBlock].amunt = vbuit;
       }
     }
-    else cout << "NO S'HA REALITZAT L'ACCIO PUSH/POP" << endl;
   }
 }
-
-
 
 
 void evaluarMove(AST *a){
@@ -427,17 +493,9 @@ void evaluarMove(AST *a){
           cout << "S'ha mogut el block" << id << endl;
           printMap();
       }
-      else {
-          cout << "No s'ha pogut" << endl;
-      }
+      else cout << "No s'ha pogut fer MOVE" << endl;
     }
-    else {
-        cout << "No s'ha pogut" << endl;
-    }
-}
-
-void evaluarWhile(AST *a){
-
+    else cout << "No s'ha pogut fer MOVE" << endl;
 }
 
 
@@ -445,8 +503,8 @@ void evaluarWhile(AST *a){
 //---------------------------EVALUACIONS PRINCIPALS---------------------------//
 //----------------------------------------------------------------------------//
 
-void evaluarOperacio(AST *a) {
-  if(a == NULL) return;
+bool evaluarOperacio(AST *a) {
+  if(a == NULL) return false;
   else if(a->kind == "=") {
     int n = 0;
     int n2 = 0;
@@ -456,13 +514,29 @@ void evaluarOperacio(AST *a) {
   }
   else if(a->kind == "MOVE") evaluarMove(child(a,0));
   else if(a->kind == "HEIGHT") evaluarHeight(child(a,0));
-  else if(a->kind == "WHILE") evaluarWhile(child(a,0));
+  else if(a->kind == "WHILE") {
+      //CONDICIO
+      while(evaluarOperacio(child(a,0))) {
+        //DO
+        evaluarOperacio(child(a,1));
+      }
+  }
+  else if(a->kind == "FITS") return evaluarFIT(child(a,0));
+  else if(a->kind == "AND") return evaluarCondicio(child(a,0));
+  else { //STRING DIF
+    int index = getIndexFuncio(a->text);
+    if(index != -1) evaluarOperacio(FUNCIONS[index].f);
+  }
   evaluarOperacio(a->right);
 }
 
+
 void definirFuncio(AST *a) {
-
-
+    //FILL 2: ARBRE REALITZADOR
+    FUNCIO F;
+    F.nom = child(a,0)->text; //FILL 1 : NOM FUNCIO
+    F.f = child(child(a,0),1);
+    FUNCIONS.push_back(F);
 }
 
 void definirTaulell(AST *a) {
@@ -483,8 +557,10 @@ void definirTaulell(AST *a) {
 void executeListInstrucctions(AST *a) {
   if(a == NULL) return;
   else if(a->kind == "GRID") definirTaulell(child(a,0));
-  else if(a->kind == "list") evaluarOperacio(child(a,0));
-  else if(a->kind == "DEF") definirFuncio(child(a,0));
+  else if(a->kind == "list")  {
+    if(child(a,0)->kind == "DEF") definirFuncio(child(a,0));
+    else evaluarOperacio(child(a,0));
+  }
   executeListInstrucctions(a->right);
 }
 

@@ -39,7 +39,6 @@ typedef struct {
   map<string, tblock> blocks;
 } Graella;
 
-
 // struct to store information about tokens
 typedef struct {
   string kind;
