@@ -18,6 +18,9 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <algorithm>
+#include <string>
+#include <sstream>
 using namespace std;
 
 //****************************************************************************//
@@ -241,12 +244,28 @@ void definirNouBlock(string id, tblock &tb) {
   }
 }
 
-bool aplicarPOP(tblock &tb_amunt, tblock &tb_abaix) {
+int getIndexAmunt(string id1, string id2) {
   
-  if(tb_amunt.x == g.blocks[tb_abaix.amunt.back()].x){
-    borrarPosicio(tb_amunt.x,tb_amunt.h,tb_amunt.y,tb_amunt.w);
-    tb_amunt.x = 0;
-    tb_amunt.y = 0;
+  int i = 0;
+  while (i < g.blocks[id1].amunt.size()) {
+    if (g.blocks[id1].amunt[i] == id2) return i;
+    ++i;
+  }
+  return -1; //No esta
+}
+
+bool aplicarPOP(string id_amunt, string id_abaix) {
+  
+  int index = getIndexAmunt(id_abaix,id_amunt); //Mira si id_amunt esta en id_abaix
+  
+  if(index != -1){ //Si esta amunt
+    
+    borrarPosicio(g.blocks[id_amunt].x,g.blocks[id_amunt].h,
+    g.blocks[id_amunt].y,g.blocks[id_amunt].w); //Borrar del mapa
+    
+    //Borrar assignacions
+    int i = getIndexAmunt(id_abaix, id_amunt);
+    g.blocks[id_abaix].amunt.erase(g.blocks[id_abaix].amunt.begin() + i);
     return true;
   }
   else {
@@ -255,24 +274,30 @@ bool aplicarPOP(tblock &tb_amunt, tblock &tb_abaix) {
   }
 }
 
-bool aplicarPUSH(tblock &tb_amunt, string id_amunt, tblock &tb_abaix) {
-  
+bool aplicarPUSH(string id_amunt, string id_abaix) {
   int x,y,dx,dy;
-  x = tb_abaix.x;
-  y = tb_abaix.y;
-  dx = tb_amunt.h;
-  dy = tb_amunt.w;
+  x = g.blocks[id_abaix].x;
+  y = g.blocks[id_abaix].y;
+  dx = g.blocks[id_amunt].h;
+  dy = g.blocks[id_amunt].w;
   
-  if (dx > tb_abaix.h || dy > tb_abaix.w) return false;
-  if(modificarMapa(x,dx,y,dy)) { //Si es pot ya s'aplica
-    if (tb_amunt.x != 0) borrarPosicio(tb_amunt.x,dx,tb_amunt.y,dy);
-    tb_amunt.x = x;
-    tb_amunt.y = y;
-    if(id_amunt != "") g.blocks[id_amunt] = tb_amunt;
-    
-    return true;
+  //Si AMUNT es MES GRAN que ABAIX -> NO POT
+  if (dx > g.blocks[id_abaix].h || dy > g.blocks[id_abaix].w) return false;
+  
+  //Si al BLOC D'ABAIX POT COLOCARSE
+  if(modificarMapa(x,dx,y,dy)) {
+  //S'aplicaPUSH
+  if (g.blocks[id_amunt].x != 0) {
+    borrarPosicio(g.blocks[id_amunt].x,dx,g.blocks[id_amunt].y,dy);
   }
-  else {
+  //Noves coordenades
+  g.blocks[id_amunt].x = x;
+  g.blocks[id_amunt].y = y;
+  //Nova assignacio
+  g.blocks[id_abaix].amunt.push_back(id_amunt);
+  return true;
+}
+else {
   cout << "NO ES POT REALITZAR EL PUSH/POP" << endl;
   return false;
 }
@@ -312,105 +337,98 @@ void evaluarLoop(AST *a){
 int num = 0;
 
 
-tblock realitzarAccioPUSHPOP(tblock &tb_ant, string &id_retorn, string &id_act, int type){
+void llegirLlista(AST *a, int &aux1, int &aux2) {
+aux1 = atoi((child(a,0)->text).c_str());
+aux2 = atoi((child(a,1)->text).c_str());
+}
 
-  tblock tbuit;
-tbuit.x = 0; tbuit.y = 0; tbuit.h = 0; tbuit.w = 0;
-if(type == 0) {
-if (aplicarPUSH(tb_ant,id_retorn,g.blocks[id_act])) {
-g.blocks[id_act].amunt.push_back(id_retorn);
-id_retorn = id_act;
-return g.blocks[id_act];
-}
-else cout << "No sha pogut realizar el PUSH" << endl;
-}
-else {
-if(aplicarPOP(tb_ant,g.blocks[id_act])) {
-//Afectacios, block id_ret(tb_ant) desapareix del mapa
-g.blocks[id_act].amunt.pop_back();
-g.blocks[id_retorn] = tb_ant;
-id_retorn = id_act;
-return g.blocks[id_act];
-}
-else cout << "No sha pogut realizar el POP" << endl;
-}
-return tbuit;
+string NumberToString ( int Number )
+{
+std::string s;
+std::stringstream out;
+out << Number;
+s = out.str();
+return s;
 }
 
 
-tblock evaluarPUSHPOP(AST *a, tblock &tb_ant, string &id_retorn, int type) {
-tblock tbuit;
-tbuit.x = 0; tbuit.y = 0; tbuit.h = 0; tbuit.w = 0;
-string node = a->kind;
-if(node == "list") {
-int aux1 = atoi((child(a,0)->text).c_str());
-int aux2 = atoi((child(a,1)->text).c_str());
-tb_ant.h = aux1;
-tb_ant.w = aux2;
-num +=1;
-id_retorn = "aux" + num;
-return evaluarPUSHPOP(a->right,tb_ant,id_retorn,type);
-}
-else if (node == "id" && tb_ant.h == 0) {
-//ID EXISTEIX
-if(g.blocks.find(a->text) != g.blocks.end()) { //Existeix block
-tb_ant = g.blocks[a->text];
-id_retorn = a->text;
-return evaluarPUSHPOP(a->right,tb_ant,id_retorn,type);
-}
+string evaluarPUSHPOP(AST *a, int type) {
+
+    string idB1;
+//FILL 1
+if(a->kind == "id") idB1 = a->text;
 else {
-cout << "NO EXISTEIX BLOCK AMB AQUEST ID" << endl;
-return tbuit;
+  int dx,dy;
+  llegirLlista(a, dx, dy);
+  //Assigna ID nou
+  num += 1;
+  idB1 = "aux" + NumberToString(num);
+  //Declarar nou block per a la graella
+  tblock block_nou;
+  block_nou.h = dx; block_nou.w = dy;
+  g.blocks[idB1] = block_nou;
 }
-}
-else if (node == "id") {
-if(g.blocks.find(a->text) != g.blocks.end()) { //Existeix block
-string id_act = a->text;
-return realitzarAccioPUSHPOP(tb_ant,id_retorn,id_act,type);
-}
-}
+//FILL 2
+string idB2;
+cout << "GI" << endl;
+if((a->right)->kind == "id") idB2 = (a->right)->text;
 else {
-tblock t;
-t.x = 0; t.y = 0; t.w=0; t.h = 0;
-string ant = "";
-int ttype = 0;
-if(node == "POP") ttype = 1;
-tblock block = evaluarPUSHPOP(child(a,0),t,ant,ttype);
-cout << tb_ant.x << id_retorn << ant << type << endl;
-return realitzarAccioPUSHPOP(tb_ant,id_retorn,ant,type);
+  
+      int type2 = 0;
+  if ((a->right)->kind == "POP") type2 = 1;
+  idB2 = evaluarPUSHPOP(child(a->right,0),type2);
+  
+    }
+//REALITZAR PUSH O POP
+if(idB2 != "") {
+  if(type == 0){
+    cout << "VOLEM FER PUSH DE "<< idB1 << " SOBRE "<< idB2 << endl;
+    if (aplicarPUSH(idB1,idB2))return idB2;
+    
+      }
+  else {
+    cout << "VOLEM FER POP DE "<< idB1 << " SOBRE "<< idB2 << endl;
+    if(aplicarPOP(idB1,idB2)) return idB2;
+  }
 }
+return "";
 }
+
 
 
 void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
 string tt = a->kind;
 if(a == NULL) return;
 if(tt == "list") {
-aux1 = atoi((child(a,0)->text).c_str());
-aux2 = atoi((child(a,1)->text).c_str());
+  llegirLlista(a,aux1,aux2);
 }
 
   else if (tt == "id") {
-id_afectat = a->text;
-evaluarAccio(a->right,aux1,aux2,id_afectat);
+  id_afectat = a->text;
+  evaluarAccio(a->right,aux1,aux2,id_afectat);
 }
 
   else if( tt == "PLACE") {
-tblock tb;
-evaluarAccio(child(a,0), tb.h, tb.w, id_afectat);
-evaluarAccio(child(a,1), tb.x, tb.y, id_afectat);
-
+  tblock tb;
+  evaluarAccio(child(a,0), tb.h, tb.w, id_afectat);
+  evaluarAccio(child(a,1), tb.x, tb.y, id_afectat);
+  
     definirNouBlock(id_afectat,tb); //OPERACIO
 }
 
   else if (tt == "PUSH" || tt == "POP") {
-int type = 0;
-if (a->kind == "POP") type = 1;
-tblock tb;
-tb.x = 0; tb.y = 0; tb.h = 0; tb.w= 0;
-string id_retorn;
-tblock tb_nou = evaluarPUSHPOP(child(a,0), tb, id_retorn, type);
-g.blocks[id_afectat] = tb_nou;
+  int type = 0;
+  if (tt == "POP") type = 1;
+  string id_nouBlock = evaluarPUSHPOP(child(a,0), type);
+  if(id_nouBlock != "") {
+    g.blocks[id_afectat] = g.blocks[id_nouBlock];
+    if(id_afectat != id_nouBlock) {
+      g.blocks[id_nouBlock].x = 0;
+      g.blocks[id_nouBlock].y = 0;
+      vector<string> vbuit;
+      g.blocks[id_nouBlock].amunt = vbuit;
+    }
+  }
 }
 }
 
@@ -431,19 +449,19 @@ int py = g.blocks[id].y + moviment.second;
 int dy = g.blocks[id].w;
 
     if(estaDinsGraella(px,py) && estaDinsGraella((dx+px),(dy+py))){
-if(modificarMapa(px,dx,py,dy)) {
-borrarPosicio(g.blocks[id].x,dx,g.blocks[id].y,dy);
-g.blocks[id].x = px;
-g.blocks[id].y = py;
-cout << "S'ha mogut el block" << id << endl;
-printMap();
+  if(modificarMapa(px,dx,py,dy)) {
+    borrarPosicio(g.blocks[id].x,dx,g.blocks[id].y,dy);
+    g.blocks[id].x = px;
+    g.blocks[id].y = py;
+    cout << "S'ha mogut el block" << id << endl;
+    printMap();
+  }
+  else {
+    cout << "No s'ha pogut" << endl;
+  }
 }
 else {
-cout << "No s'ha pogut2" << endl;
-}
-}
-else {
-cout << "No s'ha pogut" << endl;
+  cout << "No s'ha pogut" << endl;
 }
 }
 
@@ -459,11 +477,11 @@ void evaluarWhile(AST *a){
 void evaluarOperacio(AST *a) {
 if(a == NULL) return;
 else if(a->kind == "=") {
-int n = 0;
-int n2 = 0;
-string s = "";
-evaluarAccio(child(a,0),n,n2,s);
-printMap();
+  int n = 0;
+  int n2 = 0;
+  string s = "";
+  evaluarAccio(child(a,0),n,n2,s);
+  printMap();
 }
 else if(a->kind == "MOVE") evaluarMove(child(a,0));
 else if(a->kind == "HEIGHT") evaluarHeight(child(a,0));
@@ -483,9 +501,9 @@ g.m = atoi(((a->right)->text).c_str());
   vector <vector <int> > map (g.n, vector<int> (g.m));
 g.height = map;
 for (int i = 0; i < g.n; ++i) {
-for(int j = 0; j < g.m; ++j) {
-g.height[i][j] = 0;
-}
+  for(int j = 0; j < g.m; ++j) {
+    g.height[i][j] = 0;
+  }
 }
 cout << "S'ha creat el taulell de " << g.m << "x" << g.n << endl;
 printMap();
