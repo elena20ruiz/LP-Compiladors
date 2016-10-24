@@ -252,11 +252,6 @@ bool HiHaEspai(string id, int dx, int dy, int altura) {
 void definirNouBlock(string id, tblock &tb) {
     if (esPossibleModificarMapa(id, tb)) {
       g.blocks[id] = tb;
-      cout << "El block " << id << "de dimensions (" << tb.h << "," << tb.w;
-      cout << ") s'ha colocat en (" << tb.x << "," << tb.y << ")" << endl;
-    }
-    else {
-      cout << "No es possible colocal el block" << endl;
     }
 }
 
@@ -325,13 +320,11 @@ bool aplicarPOP(string id_amunt, string id_abaix) {
    return true;
   }
   else {
-      cout << "NO ES POT REALITZAR EL POP" << endl;
       return false;
   }
 }
 
 bool aplicarPUSH(string id_amunt, string id_abaix) {
-  printMap();
 
   int dx,dy;
   dx = g.blocks[id_amunt].h;
@@ -384,10 +377,8 @@ int evaluarHeight(AST *a) {
   if(g.blocks.find(a->text) != g.blocks.end()) {
       int x = g.blocks[a->text].x;
       int y = g.blocks[a->text].y;
-      cout << "L'altura de "<< a->text << " es: " << g.height[x-1][y-1] << endl;
       return g.height[x-1][y-1];
   }
-  cout << "NO EXISTEIX BLOCK AMB AQUEST ID" << endl;
   return -1;
 }
 
@@ -482,7 +473,6 @@ void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
     evaluarAccio(child(a,0), tb.h, tb.w, id_afectat);
     evaluarAccio(child(a,1), tb.x, tb.y, id_afectat);
     definirNouBlock(id_afectat,tb); //OPERACIO
-    printMap();
   }
 
   else if (tt == "PUSH" || tt == "POP") {
@@ -498,7 +488,6 @@ void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
         g.blocks[id_nouBlock].amunt = vbuit;
       }
     }
-    printMap();
   }
 }
 
@@ -520,7 +509,6 @@ void evaluarMove(AST *a){
             borrarPosicio(g.blocks[id].x,dx,g.blocks[id].y,dy);
             g.blocks[id].x = px;
             g.blocks[id].y = py;
-          printMap();
       }
     }
 }
