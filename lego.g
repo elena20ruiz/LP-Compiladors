@@ -370,6 +370,7 @@ int evaluarHeight(AST *a) {
       cout << "L'altura de "<< a->text << " es: " << g.height[x-1][y-1] << endl;
       return g.height[x-1][y-1];
   }
+  cout << "NO EXISTEIX BLOCK AMB AQUEST ID" << endl;
   return -1;
 }
 
@@ -393,7 +394,7 @@ bool esCompleixIgualtat(AST* a) {
   int cond1, cond2;
 
   cond1 = evaluarHeight(child(a,0));
-  if(cond1 == -1) cout << "NO EXISTEIX BLOCK AMB AQUEST ID" << endl;
+  if(cond1 == -1) return false;
   cond2 = atoi(((a->right)->text).c_str());
 
   if( op == ">" && (cond1 > cond2)) return true;
@@ -431,18 +432,15 @@ string evaluarPUSHPOP(AST *a, int type) {
     string idB2;
     if((a->right)->kind == "id") idB2 = (a->right)->text;
     else {
-
       int type2 = 0;
       if ((a->right)->kind == "POP") type2 = 1;
       idB2 = evaluarPUSHPOP(child(a->right,0),type2);
-
     }
     //REALITZAR PUSH O POP
     if(idB2 != "") {
       if(type == 0){
         if (aplicarPUSH(idB1,idB2))return idB2;
-
-      }
+        }
       else {
         if(aplicarPOP(idB1,idB2)) return idB2;
       }
