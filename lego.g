@@ -65,6 +65,9 @@ Graella g;
 vector<FUNCIO> FUNCIONS;
 int num = 0; //ASSIGNAR NOM A NOUS BLOCKS
 
+int fit_is;
+int altura_fit;
+
 //****************************************************************************//
 //*******************************TOKEN INFORMATION****************************//
 //****************************************************************************//
@@ -157,6 +160,7 @@ void printMap() {
     }
     cout << endl;
   }
+  cout << endl;
 }
 
 //****************************************************************************//
@@ -194,9 +198,12 @@ bool modificarMapa(int x, int dx, int y, int dy)
 int x_inicial, y_inicial;
 
 bool capBlock(int inix, int iniy, int fix, int fiy, int altura) {
+
   for(int i = inix; i < inix+fix; ++i) {
     for(int j = iniy; j < iniy+fiy; ++j) {
-      if(g.height[i][j] != altura) return false;
+      if(g.height[i][j] != (altura)) {
+        return false;
+      }
     }
   }
   x_inicial = inix;
@@ -223,14 +230,18 @@ bool HiHaEspai(string id, int dx, int dy, int altura) {
       int y = g.blocks[id].y;
       altura = g.height[x-1][y-1];
     }
-    x = g.blocks[id].x;
-    y = g.blocks[id].y;
-    xF = (x + g.blocks[id].h - dx); //Xinicial + Xfinal - dimBlock
-    yF = (x + g.blocks[id].h - dy);
+    if(fit_is == 1) altura = altura_fit -1;
 
-    for(int i = (x-1); i < xF-1; ++i) {
-      for(int j = (y-1); j < yF-1; ++j) {
-        if(capBlock(i,j,dx,dy,altura)) return true;
+
+    x = g.blocks[id].x; //x inicial
+    y = g.blocks[id].y; //y inicial
+    xF = (x + g.blocks[id].h - dx); //Xinicial + Xfinal - dimBlock
+    yF = (y + g.blocks[id].w - dy);
+    for(int i = (x-1); i < xF; ++i) {
+      for(int j = (y-1); j < yF; ++j) {
+        if(capBlock(i,j,dx,dy,altura))  {
+          return true;
+        }
       }
     }
     return false;
@@ -303,30 +314,31 @@ bool aplicarPOP(string id_amunt, string id_abaix) {
 }
 
 bool aplicarPUSH(string id_amunt, string id_abaix) {
+  printMap();
   int dx,dy;
   dx = g.blocks[id_amunt].h;
   dy = g.blocks[id_amunt].w;
 
   //Si AMUNT es MES GRAN que ABAIX -> NO POT
   if (dx > g.blocks[id_abaix].h || dy > g.blocks[id_abaix].w) return false;
-
   //Si al BLOC D'ABAIX POT COLOCARSE
+
   if(HiHaEspai(id_abaix,dx,dy,-1)) {
-    if(modificarMapa(x_inicial,dx,y_inicial,dy)) { //VARIABLES GLOBALS _inicial
+
+    if(modificarMapa(x_inicial+1,dx,y_inicial+1,dy)) { //VARIABLES GLOBALS _inicial
       //S'aplicaPUSH
       if (g.blocks[id_amunt].x != 0) {
         borrarPosicio(g.blocks[id_amunt].x,dx,g.blocks[id_amunt].y,dy);
       }
       //Noves coordenades
-      g.blocks[id_amunt].x = x_inicial;
-      g.blocks[id_amunt].y = y_inicial;
+      g.blocks[id_amunt].x = x_inicial+1;
+      g.blocks[id_amunt].y = y_inicial+1;
       //Nova assignacio
       g.blocks[id_abaix].amunt.push_back(id_amunt);
       return true;
     }
   }
   else {
-      cout << "NO ES POT REALITZAR EL PUSH/POP" << endl;
       return false;
   }
 }
@@ -358,13 +370,16 @@ int evaluarHeight(AST *a) {
 }
 
 bool evaluarFIT(AST *a) {
+  fit_is = 1;
   string id = child(a,0)->text;
   int dx = 0;
   int dy = 0;
   llegirLlista(child(a,1),dx,dy);
   int altura = atoi((child(a,2)->text).c_str());
-
-  if(HiHaEspai(id,dx,dy,altura)) return true;
+  altura_fit = altura;
+  if(HiHaEspai(id,dx,dy,altura-1)) {
+    return true;
+  }
   else return false;
 }
 
@@ -409,7 +424,6 @@ string evaluarPUSHPOP(AST *a, int type) {
       }
     //FILL 2
     string idB2;
-    cout << "GI" << endl;
     if((a->right)->kind == "id") idB2 = (a->right)->text;
     else {
 
@@ -421,12 +435,10 @@ string evaluarPUSHPOP(AST *a, int type) {
     //REALITZAR PUSH O POP
     if(idB2 != "") {
       if(type == 0){
-        cout << "VOLEM FER PUSH DE "<< idB1 << " SOBRE "<< idB2 << endl;
         if (aplicarPUSH(idB1,idB2))return idB2;
 
       }
       else {
-        cout << "VOLEM FER POP DE "<< idB1 << " SOBRE "<< idB2 << endl;
         if(aplicarPOP(idB1,idB2)) return idB2;
       }
     }
@@ -451,8 +463,8 @@ void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
     tblock tb;
     evaluarAccio(child(a,0), tb.h, tb.w, id_afectat);
     evaluarAccio(child(a,1), tb.x, tb.y, id_afectat);
-
     definirNouBlock(id_afectat,tb); //OPERACIO
+    printMap();
   }
 
   else if (tt == "PUSH" || tt == "POP") {
@@ -468,6 +480,7 @@ void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
         g.blocks[id_nouBlock].amunt = vbuit;
       }
     }
+    printMap();
   }
 }
 
@@ -504,30 +517,33 @@ void evaluarMove(AST *a){
 //----------------------------------------------------------------------------//
 
 bool evaluarOperacio(AST *a) {
-  if(a == NULL) return false;
+  if(a == NULL) return true;
   else if(a->kind == "=") {
     int n = 0;
     int n2 = 0;
     string s = "";
     evaluarAccio(child(a,0),n,n2,s);
-    printMap();
   }
   else if(a->kind == "MOVE") evaluarMove(child(a,0));
   else if(a->kind == "HEIGHT") evaluarHeight(child(a,0));
   else if(a->kind == "WHILE") {
       //CONDICIO
       while(evaluarOperacio(child(a,0))) {
-        //DO
-        evaluarOperacio(child(a,1));
+        printMap();
+        evaluarOperacio(child(child(a,1),0));
       }
+      fit_is = 0;
   }
-  else if(a->kind == "FITS") return evaluarFIT(child(a,0));
+  else if(a->kind == "FITS") {
+    return evaluarFIT(a);
+  }
   else if(a->kind == "AND") return evaluarCondicio(child(a,0));
-  else { //STRING DIF
+  else if (a->kind == "id") {
     int index = getIndexFuncio(a->text);
     if(index != -1) evaluarOperacio(FUNCIONS[index].f);
   }
   evaluarOperacio(a->right);
+  return true;
 }
 
 

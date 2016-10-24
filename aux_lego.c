@@ -216,6 +216,7 @@ bool esPossibleModificarMapa(string id, tblock &tb) {
 }
 
 bool HiHaEspai(string id, int dx, int dy, int altura) {
+    coud << "MER"<<endl;
     int x,y;
     int xF, yF;
     if (altura == -1)  {
@@ -223,10 +224,12 @@ bool HiHaEspai(string id, int dx, int dy, int altura) {
       int y = g.blocks[id].y;
       altura = g.height[x-1][y-1];
     }
-    x = g.blocks[id].x;
-    y = g.blocks[id].y;
+
+    x = g.blocks[id].x; //x inicial
+    y = g.blocks[id].y; //y inicial
     xF = (x + g.blocks[id].h - dx); //Xinicial + Xfinal - dimBlock
     yF = (x + g.blocks[id].h - dy);
+    cout << "FINS A " << xF << " " << yF << endl;
 
     for(int i = (x-1); i < xF-1; ++i) {
       for(int j = (y-1); j < yF-1; ++j) {
@@ -309,10 +312,11 @@ bool aplicarPUSH(string id_amunt, string id_abaix) {
 
   //Si AMUNT es MES GRAN que ABAIX -> NO POT
   if (dx > g.blocks[id_abaix].h || dy > g.blocks[id_abaix].w) return false;
-
+  cout << "GIII" << endl;
   //Si al BLOC D'ABAIX POT COLOCARSE
   if(HiHaEspai(id_abaix,dx,dy,-1)) {
-    if(modificarMapa(x_inicial,dx,y_inicial,dy)) { //VARIABLES GLOBALS _inicial
+    cout << "III" << x_inicial << y_inicial << endl;
+    if(modificarMapa(x_inicial+1,dx,y_inicial+1,dy)) { //VARIABLES GLOBALS _inicial
       //S'aplicaPUSH
       if (g.blocks[id_amunt].x != 0) {
         borrarPosicio(g.blocks[id_amunt].x,dx,g.blocks[id_amunt].y,dy);
@@ -409,7 +413,6 @@ string evaluarPUSHPOP(AST *a, int type) {
       }
     //FILL 2
     string idB2;
-    cout << "GI" << endl;
     if((a->right)->kind == "id") idB2 = (a->right)->text;
     else {
 
