@@ -315,6 +315,7 @@ bool aplicarPOP(string id_amunt, string id_abaix) {
 
 bool aplicarPUSH(string id_amunt, string id_abaix) {
   printMap();
+
   int dx,dy;
   dx = g.blocks[id_amunt].h;
   dy = g.blocks[id_amunt].w;
@@ -327,14 +328,17 @@ bool aplicarPUSH(string id_amunt, string id_abaix) {
 
     if(modificarMapa(x_inicial+1,dx,y_inicial+1,dy)) { //VARIABLES GLOBALS _inicial
       //S'aplicaPUSH
-      if (g.blocks[id_amunt].x != 0) {
+
+      if (g.blocks[id_amunt].x != 0)
         borrarPosicio(g.blocks[id_amunt].x,dx,g.blocks[id_amunt].y,dy);
-      }
+
       //Noves coordenades
       g.blocks[id_amunt].x = x_inicial+1;
       g.blocks[id_amunt].y = y_inicial+1;
+
       //Nova assignacio
       g.blocks[id_abaix].amunt.push_back(id_amunt);
+
       return true;
     }
   }
@@ -398,7 +402,7 @@ bool esCompleixIgualtat(AST* a) {
 }
 
 bool evaluarCondicio(AST *a) { //AND
-  return esCompleixIgualtat(child(a,0)) && esCompleixIgualtat(child(a,0));
+  return esCompleixIgualtat(child(a,0))&&esCompleixIgualtat(child(a,1));
 }
 
 
@@ -420,6 +424,7 @@ string evaluarPUSHPOP(AST *a, int type) {
         //Declarar nou block per a la graella
         tblock block_nou;
         block_nou.h = dx; block_nou.w = dy;
+        block_nou.x = 0; block_nou.y = 0;
         g.blocks[idB1] = block_nou;
       }
     //FILL 2
@@ -486,7 +491,6 @@ void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
 
 
 void evaluarMove(AST *a){
-
     string id = a->text; //1er element
     string dir = (a->right)->kind; //2on element
     int dist = atoi((((a->right)->right)->text).c_str()); //3er element
@@ -528,30 +532,29 @@ bool evaluarOperacio(AST *a) {
   else if(a->kind == "HEIGHT") evaluarHeight(child(a,0));
   else if(a->kind == "WHILE") {
       //CONDICIO
-      while(evaluarOperacio(child(a,0))) {
-        printMap();
+      while(evaluarOperacio(child(a,0)))
         evaluarOperacio(child(child(a,1),0));
-      }
       fit_is = 0;
   }
-  else if(a->kind == "FITS") {
-    return evaluarFIT(a);
-  }
-  else if(a->kind == "AND") return evaluarCondicio(child(a,0));
+  else if(a->kind == "FITS") return evaluarFIT(a);
+  else if(a->kind == "AND") return evaluarCondicio(a);
   else if (a->kind == "id") {
     int index = getIndexFuncio(a->text);
-    if(index != -1) evaluarOperacio(FUNCIONS[index].f);
+    if(index != -1) {
+      AST *a2 = FUNCIONS[index].f;
+      evaluarOperacio(a2);
+      printMap();
+    }
   }
   evaluarOperacio(a->right);
   return true;
 }
 
-
 void definirFuncio(AST *a) {
     //FILL 2: ARBRE REALITZADOR
     FUNCIO F;
     F.nom = child(a,0)->text; //FILL 1 : NOM FUNCIO
-    F.f = child(child(a,0),1);
+    F.f = child(child(a,1),0);
     FUNCIONS.push_back(F);
 }
 
@@ -571,13 +574,9 @@ void definirTaulell(AST *a) {
 }
 
 void executeListInstrucctions(AST *a) {
-  if(a == NULL) return;
-  else if(a->kind == "GRID") definirTaulell(child(a,0));
-  else if(a->kind == "list")  {
-    if(child(a,0)->kind == "DEF") definirFuncio(child(a,0));
-    else evaluarOperacio(child(a,0));
-  }
-  executeListInstrucctions(a->right);
+  definirTaulell(child(a,0));
+  definirFuncio(child((a->right)->right,0));
+  evaluarOperacio(child(a->right,0));
 }
 
 
