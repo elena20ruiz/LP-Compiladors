@@ -1,4 +1,4 @@
-INCLUDE = -I /usr/include/pccts
+INCLUDE = -I ./pccts
 FLAGS= -Wno-write-strings
 
 all: antlr dlg lego

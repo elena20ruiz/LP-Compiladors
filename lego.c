@@ -94,8 +94,12 @@ typedef struct {
 //global structures
 AST *root;
 Graella g;
-vector<FUNCIO> FUNCIONS;
 int num = 0; //ASSIGNAR NOM A NOUS BLOCKS
+
+
+
+int fit_is;
+int altura_fit;
 
 //****************************************************************************//
 //*******************************TOKEN INFORMATION****************************//
@@ -189,6 +193,7 @@ void printMap() {
     }
     cout << endl;
   }
+  cout << endl;
 }
 
 //****************************************************************************//
@@ -226,9 +231,12 @@ bool modificarMapa(int x, int dx, int y, int dy)
 int x_inicial, y_inicial;
 
 bool capBlock(int inix, int iniy, int fix, int fiy, int altura) {
+  
   for(int i = inix; i < inix+fix; ++i) {
     for(int j = iniy; j < iniy+fiy; ++j) {
-      if(g.height[i][j] != altura) return false;
+      if(g.height[i][j] != (altura)) {
+        return false;
+      }
     }
   }
   x_inicial = inix;
@@ -255,14 +263,18 @@ bool HiHaEspai(string id, int dx, int dy, int altura) {
     int y = g.blocks[id].y;
     altura = g.height[x-1][y-1];
   }
-  x = g.blocks[id].x;
-  y = g.blocks[id].y;
-  xF = (x + g.blocks[id].h - dx); //Xinicial + Xfinal - dimBlock
-  yF = (x + g.blocks[id].h - dy);
+  if(fit_is == 1) altura = altura_fit -1;
   
-    for(int i = (x-1); i < xF-1; ++i) {
-    for(int j = (y-1); j < yF-1; ++j) {
-      if(capBlock(i,j,dx,dy,altura)) return true;
+
+  x = g.blocks[id].x; //x inicial
+  y = g.blocks[id].y; //y inicial
+  xF = (x + g.blocks[id].h - dx); //Xinicial + Xfinal - dimBlock
+  yF = (y + g.blocks[id].w - dy);
+  for(int i = (x-1); i < xF; ++i) {
+    for(int j = (y-1); j < yF; ++j) {
+      if(capBlock(i,j,dx,dy,altura))  {
+        return true;
+      }
     }
   }
   return false;
@@ -280,15 +292,31 @@ void definirNouBlock(string id, tblock &tb) {
   }
 }
 
-int getIndexFuncio(string funcio) {
-  int i = 0;
-  while (i < FUNCIONS.size()) {
-    if(FUNCIONS[i].nom == funcio) return i;
-    ++i;
-  }
-  return -1;
+
+bool estaFuncio(string funcio, AST *a, int &i) {
+  if(a == NULL) return false;
+  else if (child(child(a,0),i)->text == funcio) return true;
+  i += 1;
+  return estaFuncio(funcio,a,i);
 }
 
+int getIndexFuncio(string funcio) {
+  AST *arrel_definicions = child(root,2); //arrel_funcio = list de DEFS
+  
+  if(child(arrel_definicions,0)) { //Si almenys existeix una definicio
+    int i = 0;
+    if (estaFuncio(funcio,arrel_definicions,i))return i;
+  }
+  else return -1;
+}
+
+
+//AGAFA ARREL DE LA FUNCIO A PARTIR DE LINDEX DE DEFS;
+AST* getFuncio(int index) {
+  AST *arrel_definicions = child(root,2); //list de DEFS
+  AST *arrel_funcio = child(arrel_definicions,index); //DEF de la funio
+  return arrel_funcio;
+}
 int getIndexAmunt(string id1, string id2) {
   int i = 0;
   while (i < g.blocks[id1].amunt.size()) {
@@ -335,30 +363,35 @@ bool aplicarPOP(string id_amunt, string id_abaix) {
 }
 
 bool aplicarPUSH(string id_amunt, string id_abaix) {
+  printMap();
+  
   int dx,dy;
   dx = g.blocks[id_amunt].h;
   dy = g.blocks[id_amunt].w;
   
   //Si AMUNT es MES GRAN que ABAIX -> NO POT
   if (dx > g.blocks[id_abaix].h || dy > g.blocks[id_abaix].w) return false;
-  
   //Si al BLOC D'ABAIX POT COLOCARSE
+  
   if(HiHaEspai(id_abaix,dx,dy,-1)) {
-  if(modificarMapa(x_inicial,dx,y_inicial,dy)) { //VARIABLES GLOBALS _inicial
+  
+    if(modificarMapa(x_inicial+1,dx,y_inicial+1,dy)) { //VARIABLES GLOBALS _inicial
   //S'aplicaPUSH
-  if (g.blocks[id_amunt].x != 0) {
-    borrarPosicio(g.blocks[id_amunt].x,dx,g.blocks[id_amunt].y,dy);
-  }
-  //Noves coordenades
-  g.blocks[id_amunt].x = x_inicial;
-  g.blocks[id_amunt].y = y_inicial;
-  //Nova assignacio
+  
+      if (g.blocks[id_amunt].x != 0)
+  borrarPosicio(g.blocks[id_amunt].x,dx,g.blocks[id_amunt].y,dy);
+  
+      //Noves coordenades
+  g.blocks[id_amunt].x = x_inicial+1;
+  g.blocks[id_amunt].y = y_inicial+1;
+  
+      //Nova assignacio
   g.blocks[id_abaix].amunt.push_back(id_amunt);
-  return true;
+  
+      return true;
 }
 }
 else {
-cout << "NO ES POT REALITZAR EL PUSH/POP" << endl;
 return false;
 }
 }
@@ -386,17 +419,21 @@ int y = g.blocks[a->text].y;
 cout << "L'altura de "<< a->text << " es: " << g.height[x-1][y-1] << endl;
 return g.height[x-1][y-1];
 }
+cout << "NO EXISTEIX BLOCK AMB AQUEST ID" << endl;
 return -1;
 }
 
 bool evaluarFIT(AST *a) {
+fit_is = 1;
 string id = child(a,0)->text;
 int dx = 0;
 int dy = 0;
 llegirLlista(child(a,1),dx,dy);
 int altura = atoi((child(a,2)->text).c_str());
-
-  if(HiHaEspai(id,dx,dy,altura)) return true;
+altura_fit = altura;
+if(HiHaEspai(id,dx,dy,altura-1)) {
+return true;
+}
 else return false;
 }
 
@@ -406,7 +443,7 @@ a = child(a,0);
 int cond1, cond2;
 
   cond1 = evaluarHeight(child(a,0));
-if(cond1 == -1) cout << "NO EXISTEIX BLOCK AMB AQUEST ID" << endl;
+if(cond1 == -1) return false;
 cond2 = atoi(((a->right)->text).c_str());
 
   if( op == ">" && (cond1 > cond2)) return true;
@@ -415,7 +452,7 @@ return false;
 }
 
 bool evaluarCondicio(AST *a) { //AND
-return esCompleixIgualtat(child(a,0)) && esCompleixIgualtat(child(a,0));
+return esCompleixIgualtat(child(a,0))&&esCompleixIgualtat(child(a,1));
 }
 
 
@@ -437,28 +474,23 @@ idB1 = "aux" + NumberToString(num);
 //Declarar nou block per a la graella
 tblock block_nou;
 block_nou.h = dx; block_nou.w = dy;
+block_nou.x = 0; block_nou.y = 0;
 g.blocks[idB1] = block_nou;
 }
 //FILL 2
 string idB2;
-cout << "GI" << endl;
 if((a->right)->kind == "id") idB2 = (a->right)->text;
 else {
-
-      int type2 = 0;
+int type2 = 0;
 if ((a->right)->kind == "POP") type2 = 1;
 idB2 = evaluarPUSHPOP(child(a->right,0),type2);
-
-    }
+}
 //REALITZAR PUSH O POP
 if(idB2 != "") {
 if(type == 0){
-  cout << "VOLEM FER PUSH DE "<< idB1 << " SOBRE "<< idB2 << endl;
   if (aplicarPUSH(idB1,idB2))return idB2;
-  
-      }
+}
 else {
-  cout << "VOLEM FER POP DE "<< idB1 << " SOBRE "<< idB2 << endl;
   if(aplicarPOP(idB1,idB2)) return idB2;
 }
 }
@@ -470,9 +502,7 @@ return "";
 void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
 string tt = a->kind;
 if(a == NULL) return;
-if(tt == "list") {
-llegirLlista(a,aux1,aux2);
-}
+if(tt == "list") llegirLlista(a,aux1,aux2);
 
   else if (tt == "id") {
 id_afectat = a->text;
@@ -483,8 +513,8 @@ evaluarAccio(a->right,aux1,aux2,id_afectat);
 tblock tb;
 evaluarAccio(child(a,0), tb.h, tb.w, id_afectat);
 evaluarAccio(child(a,1), tb.x, tb.y, id_afectat);
-
-    definirNouBlock(id_afectat,tb); //OPERACIO
+definirNouBlock(id_afectat,tb); //OPERACIO
+printMap();
 }
 
   else if (tt == "PUSH" || tt == "POP") {
@@ -500,13 +530,13 @@ if(id_nouBlock != "") {
     g.blocks[id_nouBlock].amunt = vbuit;
   }
 }
+printMap();
 }
 }
 
 
 void evaluarMove(AST *a){
-
-    string id = a->text; //1er element
+string id = a->text; //1er element
 string dir = (a->right)->kind; //2on element
 int dist = atoi((((a->right)->right)->text).c_str()); //3er element
 
@@ -522,12 +552,9 @@ if(modificarMapa(px,dx,py,dy)) {
   borrarPosicio(g.blocks[id].x,dx,g.blocks[id].y,dy);
   g.blocks[id].x = px;
   g.blocks[id].y = py;
-  cout << "S'ha mogut el block" << id << endl;
   printMap();
 }
-else cout << "No s'ha pogut fer MOVE" << endl;
 }
-else cout << "No s'ha pogut fer MOVE" << endl;
 }
 
 
@@ -536,44 +563,40 @@ else cout << "No s'ha pogut fer MOVE" << endl;
 //----------------------------------------------------------------------------//
 
 bool evaluarOperacio(AST *a) {
-if(a == NULL) return false;
+if(a == NULL) return true;
 else if(a->kind == "=") {
 int n = 0;
 int n2 = 0;
 string s = "";
 evaluarAccio(child(a,0),n,n2,s);
-printMap();
 }
 else if(a->kind == "MOVE") evaluarMove(child(a,0));
 else if(a->kind == "HEIGHT") evaluarHeight(child(a,0));
 else if(a->kind == "WHILE") {
 //CONDICIO
-while(evaluarOperacio(child(a,0))) {
-  //DO
-  evaluarOperacio(child(a,1));
+while(evaluarOperacio(child(a,0)))
+evaluarOperacio(child(child(a,1),0));
+fit_is = 0;
 }
-}
-else if(a->kind == "FITS") return evaluarFIT(child(a,0));
-else if(a->kind == "AND") return evaluarCondicio(child(a,0));
-else { //STRING DIF
+else if(a->kind == "FITS") return evaluarFIT(a);
+
+  else if(a->kind == "AND") return evaluarCondicio(a);
+
+  else if (a->kind == "id") { //CONSIDEREM ID com NOM FUNCIO
 int index = getIndexFuncio(a->text);
-if(index != -1) evaluarOperacio(FUNCIONS[index].f);
+if(index != -1) {
+  AST *arrel_funcio = getFuncio(index); //DEF
+  AST *list_funcio = child(arrel_funcio,1);
+  evaluarOperacio(child(list_funcio,0)); //Es passa primera accio de la llist
+}
 }
 evaluarOperacio(a->right);
-}
-
-
-void definirFuncio(AST *a) {
-//FILL 2: ARBRE REALITZADOR
-FUNCIO F;
-F.nom = child(a,0)->text; //FILL 1 : NOM FUNCIO
-F.f = child(child(a,0),1);
-FUNCIONS.push_back(F);
+return true;
 }
 
 void definirTaulell(AST *a) {
-g.n = atoi((a->text).c_str());
-g.m = atoi(((a->right)->text).c_str());
+g.n = atoi((child(a,0)->text).c_str());
+g.m = atoi((child(a,1)->text).c_str());
 
   vector <vector <int> > map (g.n, vector<int> (g.m));
 g.height = map;
@@ -582,20 +605,14 @@ for(int j = 0; j < g.m; ++j) {
   g.height[i][j] = 0;
 }
 }
-cout << "S'ha creat el taulell de " << g.m << "x" << g.n << endl;
-printMap();
 }
 
 void executeListInstrucctions(AST *a) {
 if(a == NULL) return;
-else if(a->kind == "GRID") definirTaulell(child(a,0));
-else if(a->kind == "list")  {
-if(child(a,0)->kind == "DEF") definirFuncio(child(a,0));
-else evaluarOperacio(child(a,0));
-}
+if(a->kind == "GRID") definirTaulell(a);
+if(a->kind == "list") evaluarOperacio(child(a,0)); //Passar primer element
 executeListInstrucctions(a->right);
 }
-
 
 int main() {
 root = NULL;
@@ -797,19 +814,40 @@ AST **_root;
   zzMake0;
   {
   zzmatch(ID); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
-  zzmatch(ASSIG); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
   {
     zzBLOCK(zztasp2);
     zzMake0;
     {
-    if ( (LA(1)==PLACE) ) {
-      where(zzSTR); zzlink(_root, &_sibling, &_tail);
+    if ( (LA(1)==ASSIG) ) {
+      {
+        zzBLOCK(zztasp3);
+        zzMake0;
+        {
+        zzmatch(ASSIG); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
+        {
+          zzBLOCK(zztasp4);
+          zzMake0;
+          {
+          if ( (LA(1)==PLACE) ) {
+            where(zzSTR); zzlink(_root, &_sibling, &_tail);
+          }
+          else {
+            if ( (setwd1[LA(1)]&0x80) ) {
+              pp(zzSTR); zzlink(_root, &_sibling, &_tail);
+            }
+            else {zzFAIL(1,zzerr2,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+          }
+          zzEXIT(zztasp4);
+          }
+        }
+        zzEXIT(zztasp3);
+        }
+      }
     }
     else {
-      if ( (setwd1[LA(1)]&0x80) ) {
-        pp(zzSTR); zzlink(_root, &_sibling, &_tail);
+      if ( (setwd2[LA(1)]&0x1) ) {
       }
-      else {zzFAIL(1,zzerr2,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+      else {zzFAIL(1,zzerr3,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
     }
     zzEXIT(zztasp2);
     }
@@ -819,7 +857,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x1);
+  zzresynch(setwd2, 0x2);
   }
 }
 
@@ -844,7 +882,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x2);
+  zzresynch(setwd2, 0x4);
   }
 }
 
@@ -870,7 +908,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x4);
+  zzresynch(setwd2, 0x8);
   }
 }
 
@@ -895,7 +933,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x8);
+  zzresynch(setwd2, 0x10);
   }
 }
 
@@ -924,7 +962,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x10);
+  zzresynch(setwd2, 0x20);
   }
 }
 
@@ -953,7 +991,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x20);
+  zzresynch(setwd2, 0x40);
   }
 }
 
@@ -981,7 +1019,7 @@ AST **_root;
       if ( (LA(1)==POP) ) {
         zzmatch(POP); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
       }
-      else {zzFAIL(1,zzerr3,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+      else {zzFAIL(1,zzerr4,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
     }
     zzEXIT(zztasp2);
     }
@@ -992,7 +1030,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x40);
+  zzresynch(setwd2, 0x80);
   }
 }
 
@@ -1014,7 +1052,7 @@ AST **_root;
     zzMake0;
     {
     for (;;) {
-      if ( !((setwd2[LA(1)]&0x80))) break;
+      if ( !((setwd3[LA(1)]&0x1))) break;
       if ( (LA(1)==POP) ) {
         zzmatch(POP); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
         zzmatch(ID); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
@@ -1036,7 +1074,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x1);
+  zzresynch(setwd3, 0x2);
   }
 }
 
@@ -1070,7 +1108,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x2);
+  zzresynch(setwd3, 0x4);
   }
 }
 
@@ -1103,21 +1141,21 @@ AST **_root;
           if ( (LA(1)==BT) ) {
             zzmatch(BT); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
           }
-          else {zzFAIL(1,zzerr4,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+          else {zzFAIL(1,zzerr5,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
         }
         zzEXIT(zztasp2);
         }
       }
       zzmatch(NUM); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
     }
-    else {zzFAIL(1,zzerr5,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+    else {zzFAIL(1,zzerr6,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
   }
   zzEXIT(zztasp1);
   return;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x4);
+  zzresynch(setwd3, 0x8);
   }
 }
 
@@ -1141,7 +1179,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x8);
+  zzresynch(setwd3, 0x10);
   }
 }
 
@@ -1168,7 +1206,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x10);
+  zzresynch(setwd3, 0x20);
   }
 }
 
@@ -1199,7 +1237,7 @@ AST **_root;
         if ( (LA(1)==WEST) ) {
           zzmatch(WEST); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
         }
-        else {zzFAIL(1,zzerr6,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+        else {zzFAIL(1,zzerr7,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
       }
     }
   }
@@ -1208,7 +1246,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x20);
+  zzresynch(setwd3, 0x40);
   }
 }
 
@@ -1233,13 +1271,13 @@ AST **_root;
       coord(zzSTR); zzlink(_root, &_sibling, &_tail);
       zzmatch(PC);  zzCONSUME;
     }
-    else {zzFAIL(1,zzerr7,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+    else {zzFAIL(1,zzerr8,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
   }
   zzEXIT(zztasp1);
   return;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x40);
+  zzresynch(setwd3, 0x80);
   }
 }

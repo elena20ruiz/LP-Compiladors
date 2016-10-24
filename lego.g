@@ -62,8 +62,9 @@ typedef struct {
 //global structures
 AST *root;
 Graella g;
-vector<FUNCIO> FUNCIONS;
 int num = 0; //ASSIGNAR NOM A NOUS BLOCKS
+
+
 
 int fit_is;
 int altura_fit;
@@ -259,15 +260,31 @@ void definirNouBlock(string id, tblock &tb) {
     }
 }
 
-int getIndexFuncio(string funcio) {
-  int i = 0;
-  while (i < FUNCIONS.size()) {
-    if(FUNCIONS[i].nom == funcio) return i;
-    ++i;
-  }
-  return -1;
+
+bool estaFuncio(string funcio, AST *a, int &i) {
+  if(a == NULL) return false;
+  else if (child(child(a,0),i)->text == funcio) return true;
+  i += 1;
+  return estaFuncio(funcio,a,i);
 }
 
+int getIndexFuncio(string funcio) {
+  AST *arrel_definicions = child(root,2); //arrel_funcio = list de DEFS
+
+  if(child(arrel_definicions,0)) { //Si almenys existeix una definicio
+    int i = 0;
+    if (estaFuncio(funcio,arrel_definicions,i))return i;
+  }
+  else return -1;
+}
+
+
+//AGAFA ARREL DE LA FUNCIO A PARTIR DE LINDEX DE DEFS;
+AST* getFuncio(int index) {
+  AST *arrel_definicions = child(root,2); //list de DEFS
+  AST *arrel_funcio = child(arrel_definicions,index); //DEF de la funio
+  return arrel_funcio;
+}
 int getIndexAmunt(string id1, string id2) {
   int i = 0;
   while (i < g.blocks[id1].amunt.size()) {
@@ -453,9 +470,7 @@ string evaluarPUSHPOP(AST *a, int type) {
 void evaluarAccio(AST *a, int &aux1, int &aux2, string &id_afectat){
   string tt = a->kind;
   if(a == NULL) return;
-  if(tt == "list") {
-    llegirLlista(a,aux1,aux2);
-  }
+  if(tt == "list") llegirLlista(a,aux1,aux2);
 
   else if (tt == "id") {
     id_afectat = a->text;
@@ -505,12 +520,9 @@ void evaluarMove(AST *a){
             borrarPosicio(g.blocks[id].x,dx,g.blocks[id].y,dy);
             g.blocks[id].x = px;
             g.blocks[id].y = py;
-          cout << "S'ha mogut el block" << id << endl;
           printMap();
       }
-      else cout << "No s'ha pogut fer MOVE" << endl;
     }
-    else cout << "No s'ha pogut fer MOVE" << endl;
 }
 
 
@@ -535,30 +547,24 @@ bool evaluarOperacio(AST *a) {
       fit_is = 0;
   }
   else if(a->kind == "FITS") return evaluarFIT(a);
+
   else if(a->kind == "AND") return evaluarCondicio(a);
-  else if (a->kind == "id") {
+
+  else if (a->kind == "id") { //CONSIDEREM ID com NOM FUNCIO
     int index = getIndexFuncio(a->text);
     if(index != -1) {
-      AST *a2 = FUNCIONS[index].f;
-      evaluarOperacio(a2);
-      printMap();
+      AST *arrel_funcio = getFuncio(index); //DEF
+      AST *list_funcio = child(arrel_funcio,1);
+      evaluarOperacio(child(list_funcio,0)); //Es passa primera accio de la llist
     }
   }
   evaluarOperacio(a->right);
   return true;
 }
 
-void definirFuncio(AST *a) {
-    //FILL 2: ARBRE REALITZADOR
-    FUNCIO F;
-    F.nom = child(a,0)->text; //FILL 1 : NOM FUNCIO
-    F.f = child(child(a,1),0);
-    FUNCIONS.push_back(F);
-}
-
 void definirTaulell(AST *a) {
-  g.n = atoi((a->text).c_str());
-  g.m = atoi(((a->right)->text).c_str());
+  g.n = atoi((child(a,0)->text).c_str());
+  g.m = atoi((child(a,1)->text).c_str());
 
   vector <vector <int> > map (g.n, vector<int> (g.m));
   g.height = map;
@@ -567,16 +573,14 @@ void definirTaulell(AST *a) {
       g.height[i][j] = 0;
     }
   }
-  cout << "S'ha creat el taulell de " << g.m << "x" << g.n << endl;
-  printMap();
 }
 
 void executeListInstrucctions(AST *a) {
-  definirTaulell(child(a,0));
-  definirFuncio(child((a->right)->right,0));
-  evaluarOperacio(child(a->right,0));
+  if(a == NULL) return;
+  if(a->kind == "GRID") definirTaulell(a);
+  if(a->kind == "list") evaluarOperacio(child(a,0)); //Passar primer element
+  executeListInstrucctions(a->right);
 }
-
 
 int main() {
   root = NULL;
@@ -632,7 +636,6 @@ grid: GRID^ NUM NUM;
 ops: (instruction)* <<#0=createASTlist(_sibling);>>;
 defs: (def)* <<#0=createASTlist(_sibling);>>;
 
-
 //1.OPERACIONS
 instruction: action | mov | loop | height;
 
@@ -640,14 +643,14 @@ instruction: action | mov | loop | height;
 def: DEF^ ID ops ENDEF!;
 
 //---FUNCIONS
-    action: ID ASSIG^ (where | pp);
+    action: ID ((ASSIG^ (where | pp))| );
     mov: MOVE^ ID dir NUM;
     loop: WHILE^ PO! cond PC! make;
     height: HEIGHT^ PO! ID PC!;
     fit: FITS^ PO! ID COM! coord COM! NUM PC!;
 
 
-//----------SOBRE ACCIONS
+//---------SOBRE ACCIONS
             where: PLACE^ PO! coord PC! AT! PO! coord PC!;
             pp: type (PUSH^| POP^) pp2;
             pp2: ID (POP^ ID|PUSH^ ID)*;
